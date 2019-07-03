@@ -56,23 +56,21 @@ public:
 
 	void update() override
 	{
-		const Rect directory_select_bottun(40, 40, 250, 30);
+		const Rect directory_select_bottun(40, 40, 250, 30); 
+		directory_select_bottun.draw(Color(28, 200, 186));
 		font(L"ディレクトリ選択").draw(directory_select_bottun.pos.movedBy(24, 8), Palette::Black);
 		if (directory_select_bottun.leftClicked) {
 			if (const auto folder = Dialog::GetFolder())
 			{
-				m_data->filelist = FileSystem::DirectoryContents(folder.value());
+				filelist = FileSystem::DirectoryContents(folder.value());
 			}
-			/*for (const auto& path : filelist)
+			for (const auto& path : filelist)
 			{
 				if (FileSystem::Extension(path) == L"jpg")
 				{
-					const Image image(path);
-					const Texture texture(image);
-					texture.draw();
-					WaitKey();
+					m_data->filelist.push_back(path);
 				}
-			}*/
+			}
 		}
 
 		const Rect Login_button(300, 400, 300, 60);
@@ -96,14 +94,21 @@ public:
 class Labeling : public MyApp::Scene
 {
 public:
+	DynamicTexture texture;
+	int index = 0;
+	int imgLength = 0;
+
 	void init() override {
 		Window::Resize(640, 640);
 		Window::SetStyle(WindowStyle::Sizeable);
+		chengeImg(m_data->filelist[index]);
+		imgLength = m_data->filelist.size();
 		
 	}
 
-	void chengeImg() {
-		//画像を変える処理
+	void chengeImg(FilePath imgPath) {
+		Image image(imgPath); 
+		texture.fill(image);
 	}
 
 	void update() override
@@ -115,28 +120,32 @@ public:
 		const Rect Not_Engaged_Button(300, 600, 200, 60);
 		Not_Engaged_Button.draw(Color(28, 200, 186));
 		font(L"Not Engaged").draw(Not_Engaged_Button.pos.movedBy(24, 8), Palette::Black);
-
-		if (Engaged_Button.leftClicked | Input::Key1.clicked) {
-			Println(L"Engaged");
-		}
-		if (Not_Engaged_Button.leftClicked | Input::Key0.clicked) {
-			Println(L"Not Engaged");
-		}
-		
-		for (const auto& path : m_data->filelist)
-		{
-			if (FileSystem::Extension(path) == L"jpg")
-			{
-				const Image image(path);
-				const Texture texture(image);
-				texture.resize(640*0.8, 480*0.8).draw(30, 30);
-				font(Window::Width(), L'×', Window::Height()).draw();
-
-				
-				WaitKey();
-
+		if (Engaged_Button.leftClicked | Input::Key1.pressed) {
+			if (index < imgLength -1) {
+				index++;
+				chengeImg(m_data->filelist[index]);
 			}
 		}
+		if (Not_Engaged_Button.leftClicked | Input::Key0.pressed) {
+			if (index < imgLength -1 ) {
+				index++;
+				chengeImg(m_data->filelist[index]);
+			}
+		}
+		if (Input::KeyRight.pressed) {
+			if (index < imgLength - 1) {
+				index++;
+				chengeImg(m_data->filelist[index]);
+			}
+		}
+		if (Input::KeyLeft.pressed) {
+			if (index > 0) {
+				index--;
+				chengeImg(m_data->filelist[index]);
+			}
+		}
+
+		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 30);
 	}
 	Font font{ 10 };
 
