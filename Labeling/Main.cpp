@@ -1,46 +1,14 @@
-﻿
-# include <Siv3D.hpp>
+﻿# include <Siv3D.hpp>
 # include <HamFramework.hpp>
-# include <thread>
-# include <Windows.h>
-# include <tchar.h>
-# include <string>
-# include <fstream> 
-# include <stdio.h>
-# include <iostream>
-# include <direct.h>
-# include <time.h>
-# include <iomanip> //時間を取得するため
-# include <sstream> //値を簡単に文字列にするため
-# include <chrono>
-# include <future>
-# include <conio.h>
-
-std::string zeropadding(int i, int n) {
-	std::ostringstream sout;
-	sout << std::setfill('0') << std::setw(n) << i;
-	return sout.str();
-}
-
-std::string get_time() {
-	auto time = DateTime::Now();
-	std::string str = std::to_string(time.year) + "_" + std::to_string(time.month) + "_" + zeropadding(time.day, 2) + "_" + zeropadding(time.hour, 2) + "_" + zeropadding(time.minute, 2) + "_" + zeropadding(time.second, 2) + "_" + zeropadding(time.milliseconds, 3);
-	return str;
-}
+# include <map>
 
 //各画面で共有するデータ
 //m_data->IDなどでアクセス
 struct CommonData
 {
-	int ID = 0;
-	int name = 0;
-	String sub;
-	int sub_ID = -1;
-	int chap = 0;
-	int video_num = 0;
-	int32 camera_id = 0;
-	String message = L"";
+	String parantfolder = L"";
 	Array<FilePath> filelist;
+	int imgLength;
 };
 using MyApp = SceneManager<String, CommonData>;
 
@@ -49,9 +17,11 @@ class FolderSelection : public MyApp::Scene
 {
 public:
 	Array<FilePath> filelist;
+	bool isSelected = false;
 
 	void init() override {
 		Window::SetTitle(L"FolderSelection");
+		System::SetExitEvent(WindowEvent::CloseButton);
 	}
 
 	void update() override
@@ -62,6 +32,8 @@ public:
 		if (directory_select_bottun.leftClicked) {
 			if (const auto folder = Dialog::GetFolder())
 			{
+				m_data->filelist = {};
+				m_data->parantfolder = folder.value();
 				filelist = FileSystem::DirectoryContents(folder.value());
 			}
 			for (const auto& path : filelist)
@@ -71,19 +43,25 @@ public:
 					m_data->filelist.push_back(path);
 				}
 			}
+			m_data->imgLength = m_data->filelist.size();
 		}
+		if (m_data->imgLength == 0)
+		{
+			font(L"No images in the folder").draw();
+		}
+		const Rect directory_parant(0, 80, 700, 30);
+		directory_parant.draw(Color(28, 200, 186));
+		font(m_data->parantfolder).draw(directory_parant.pos.movedBy(24, 8), Palette::Black);
 
 		const Rect Login_button(300, 400, 300, 60);
 		Login_button.draw(Color(28, 200, 186));
 		font(L"Start Labeling").draw(Login_button.pos.movedBy(24, 8), Palette::Black);
-		font(m_data->message).draw(Login_button.pos.movedBy(24, 30), Palette::Black);
-
-
 
 		if (Login_button.leftClicked | Input::KeyEnter.clicked) {
+			if (m_data->imgLength != 0) {
 				changeScene(L"Labeling");
+			}
 		}
-
 	}
 	void draw() const override {
 	}
@@ -96,44 +74,93 @@ class Labeling : public MyApp::Scene
 public:
 	DynamicTexture texture;
 	int index = 0;
-	int imgLength = 0;
+	String filename = L"";
+	std::map<FilePath,int> flag;
+	FilePath flagpath;
 
 	void init() override {
 		Window::Resize(640, 640);
 		Window::SetStyle(WindowStyle::Sizeable);
-		chengeImg(m_data->filelist[index]);
-		imgLength = m_data->filelist.size();
+		flagpath = m_data->parantfolder + L"/continuouslabel.csv";
+		CSVReader csvreader(flagpath);
 		
+		for (int i = 0; i < m_data->imgLength; i++) {
+			flag[m_data->filelist[i]] = -1;
+		}
+
+		for (int i = 0; i < csvreader.rows; i++) {
+			flag[csvreader.get<String>(i, 0)] = csvreader.get<int32>(i, 1);
+		}
+		csvreader.close();
+
+		chengeImg(m_data->filelist[index]);
 	}
 
 	void chengeImg(FilePath imgPath) {
 		Image image(imgPath); 
 		texture.fill(image);
+		filename = imgPath;
 	}
 
 	void update() override
 	{
-		const Rect Engaged_Button(10, 600, 200, 60);
-		Engaged_Button.draw(Color(28, 200, 186));
-		font(L"Engaged").draw(Engaged_Button.pos.movedBy(24, 8), Palette::Black);
+		font(index+1,L"/",m_data->imgLength).draw();
 
-		const Rect Not_Engaged_Button(300, 600, 200, 60);
-		Not_Engaged_Button.draw(Color(28, 200, 186));
-		font(L"Not Engaged").draw(Not_Engaged_Button.pos.movedBy(24, 8), Palette::Black);
+		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 30);
+
+		const Rect Engaged_Button(10, 450, 200, 60);
+		Engaged_Button.draw(Color(255, 255, 127));
+		font(L"Engaged:Key1").draw(Engaged_Button.pos.movedBy(24, 8), Palette::Black);
 		if (Engaged_Button.leftClicked | Input::Key1.pressed) {
-			if (index < imgLength -1) {
+			flag[m_data->filelist[index]] = 1;
+			if (index < m_data->imgLength - 1) {
 				index++;
 				chengeImg(m_data->filelist[index]);
 			}
 		}
+
+		const Rect Not_Engaged_Button(300, 450, 200, 60);
+		Not_Engaged_Button.draw(Color(127, 255, 255));
+		font(L"Not Engaged:Key0").draw(Not_Engaged_Button.pos.movedBy(24, 8), Palette::Black);
 		if (Not_Engaged_Button.leftClicked | Input::Key0.pressed) {
-			if (index < imgLength -1 ) {
+			flag[m_data->filelist[index]] = 0;
+			if (index < m_data->imgLength -1 ) {
 				index++;
 				chengeImg(m_data->filelist[index]);
 			}
 		}
+
+		const Rect State_Button(10, 550, 200, 60);
+		if (flag[m_data->filelist[index]] == 0) {
+			State_Button.draw(Color(127, 255, 255));
+			font(L"Label:Not Engaged").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
+		}
+		else if (flag[m_data->filelist[index]] == 1) {
+			State_Button.draw(Color(255, 255, 127));
+			font(L"Label:Engaged").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
+		}
+		else {
+			State_Button.draw(Color(246, 54, 127));
+			font(L"No Label").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
+		}
+
+		const Rect Back_Button(300, 550, 200, 60);
+		Back_Button.draw(Color(246, 54, 127));
+		font(L"Exit").draw(Back_Button.pos.movedBy(24, 8), Palette::Black);
+		if (Back_Button.leftClicked | Input::KeyEscape.pressed) {
+			FileSystem::Remove(flagpath);
+			CSVWriter writer(flagpath);
+			for (int i = 0; i < m_data->imgLength; i++) {
+				writer.write(m_data->filelist[i]);
+				writer.write(flag[m_data->filelist[i]]);
+				writer.nextLine();
+			}
+			writer.close();
+			changeScene(L"FolderSelection");
+		}
+
 		if (Input::KeyRight.pressed) {
-			if (index < imgLength - 1) {
+			if (index < m_data->imgLength - 1) {
 				index++;
 				chengeImg(m_data->filelist[index]);
 			}
@@ -144,8 +171,6 @@ public:
 				chengeImg(m_data->filelist[index]);
 			}
 		}
-
-		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 30);
 	}
 	Font font{ 10 };
 
