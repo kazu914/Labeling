@@ -1,12 +1,13 @@
 ﻿# include <Siv3D.hpp>
 # include <HamFramework.hpp>
 # include <map>
+# include <algorithm>
 
 //各画面で共有するデータ
 //m_data->IDなどでアクセス
 struct CommonData
 {
-	String parantfolder = L"";
+	String parentfolder = L"";
 	Array<FilePath> filelist;
 	int imgLength;
 };
@@ -28,12 +29,12 @@ public:
 	{
 		const Rect directory_select_bottun(40, 40, 250, 30); 
 		directory_select_bottun.draw(Color(28, 200, 186));
-		font(L"ディレクトリ選択").draw(directory_select_bottun.pos.movedBy(24, 8), Palette::Black);
+		font(L"フォルダー選択(Click Here)").draw(directory_select_bottun.pos.movedBy(24, 8), Palette::Black);
 		if (directory_select_bottun.leftClicked) {
 			if (const auto folder = Dialog::GetFolder())
 			{
 				m_data->filelist = {};
-				m_data->parantfolder = folder.value();
+				m_data->parentfolder = folder.value();
 				filelist = FileSystem::DirectoryContents(folder.value());
 			}
 			for (const auto& path : filelist)
@@ -42,7 +43,9 @@ public:
 				{
 					m_data->filelist.push_back(path);
 				}
+				
 			}
+			std::sort(m_data->filelist.begin(), m_data->filelist.end());
 			m_data->imgLength = m_data->filelist.size();
 		}
 		if (m_data->imgLength == 0)
@@ -51,7 +54,7 @@ public:
 		}
 		const Rect directory_parant(0, 80, 700, 30);
 		directory_parant.draw(Color(28, 200, 186));
-		font(m_data->parantfolder).draw(directory_parant.pos.movedBy(24, 8), Palette::Black);
+		font(m_data->parentfolder).draw(directory_parant.pos.movedBy(24, 8), Palette::Black);
 
 		const Rect Login_button(300, 400, 300, 60);
 		Login_button.draw(Color(28, 200, 186));
@@ -81,11 +84,13 @@ public:
 	void init() override {
 		Window::Resize(640, 640);
 		Window::SetStyle(WindowStyle::Sizeable);
-		flagpath = m_data->parantfolder + L"/continuouslabel.csv";
+		flagpath = m_data->parentfolder + L"/continuouslabel.csv";
 		CSVReader csvreader(flagpath);
+
 		
 		for (int i = 0; i < m_data->imgLength; i++) {
-			flag[m_data->filelist[i]] = -1;
+			String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"");
+			flag[tmp_path] = -1;
 		}
 
 		for (int i = 0; i < csvreader.rows; i++) {
@@ -99,20 +104,20 @@ public:
 	void chengeImg(FilePath imgPath) {
 		Image image(imgPath); 
 		texture.fill(image);
-		filename = imgPath;
+		filename = imgPath.replace(m_data->parentfolder, L"");
 	}
 
 	void update() override
 	{
-		font(index+1,L"/",m_data->imgLength).draw();
+		font(index+1,L"/",m_data->imgLength,L"\n", filename).draw();
 
-		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 30);
+		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 40);
 
 		const Rect Engaged_Button(10, 450, 200, 60);
 		Engaged_Button.draw(Color(255, 255, 127));
 		font(L"Engaged:Key1").draw(Engaged_Button.pos.movedBy(24, 8), Palette::Black);
 		if (Engaged_Button.leftClicked | Input::Key1.pressed) {
-			flag[m_data->filelist[index]] = 1;
+			flag[filename] = 1;
 			if (index < m_data->imgLength - 1) {
 				index++;
 				chengeImg(m_data->filelist[index]);
@@ -123,7 +128,7 @@ public:
 		Not_Engaged_Button.draw(Color(127, 255, 255));
 		font(L"Not Engaged:Key0").draw(Not_Engaged_Button.pos.movedBy(24, 8), Palette::Black);
 		if (Not_Engaged_Button.leftClicked | Input::Key0.pressed) {
-			flag[m_data->filelist[index]] = 0;
+			flag[filename] = 0;
 			if (index < m_data->imgLength -1 ) {
 				index++;
 				chengeImg(m_data->filelist[index]);
@@ -131,11 +136,11 @@ public:
 		}
 
 		const Rect State_Button(10, 550, 200, 60);
-		if (flag[m_data->filelist[index]] == 0) {
+		if (flag[filename] == 0) {
 			State_Button.draw(Color(127, 255, 255));
 			font(L"Label:Not Engaged").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
 		}
-		else if (flag[m_data->filelist[index]] == 1) {
+		else if (flag[filename] == 1) {
 			State_Button.draw(Color(255, 255, 127));
 			font(L"Label:Engaged").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
 		}
@@ -151,8 +156,9 @@ public:
 			FileSystem::Remove(flagpath);
 			CSVWriter writer(flagpath);
 			for (int i = 0; i < m_data->imgLength; i++) {
-				writer.write(m_data->filelist[i]);
-				writer.write(flag[m_data->filelist[i]]);
+				String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"");
+				writer.write(tmp_path);
+				writer.write(flag[tmp_path]);
 				writer.nextLine();
 			}
 			writer.close();
