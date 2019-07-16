@@ -116,7 +116,7 @@ public:
 
 	void update() override
 	{
-		font(index+1,L"/",m_data->imgLength,L"\n", filename,L"\n",flagpath).draw();
+		font(index+1,L"/",m_data->imgLength,L"\n", filename).draw();
 
 		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 40);
 
