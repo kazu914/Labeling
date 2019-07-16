@@ -9,6 +9,7 @@ struct CommonData
 {
 	String parentfolder = L"";
 	Array<FilePath> filelist;
+	String labeler = L"";
 	int imgLength;
 };
 using MyApp = SceneManager<String, CommonData>;
@@ -56,12 +57,18 @@ public:
 		directory_parant.draw(Color(28, 200, 186));
 		font(m_data->parentfolder).draw(directory_parant.pos.movedBy(24, 8), Palette::Black);
 
+		const Rect labeler_bottun(0, 150, 700, 30);
+		labeler_bottun.draw(Color(28, 200, 186));
+		Input::GetCharsHelper(m_data->labeler);
+		font(L"labelar:" + m_data->labeler).draw(labeler_bottun.pos.movedBy(24, 8), Palette::Black);
+
+
 		const Rect Login_button(300, 400, 300, 60);
 		Login_button.draw(Color(28, 200, 186));
 		font(L"Start Labeling").draw(Login_button.pos.movedBy(24, 8), Palette::Black);
 
 		if (Login_button.leftClicked | Input::KeyEnter.clicked) {
-			if (m_data->imgLength != 0) {
+			if (m_data->imgLength != 0 && m_data->labeler!=L"") {
 				changeScene(L"Labeling");
 			}
 		}
@@ -84,12 +91,12 @@ public:
 	void init() override {
 		Window::Resize(640, 640);
 		Window::SetStyle(WindowStyle::Sizeable);
-		flagpath = m_data->parentfolder + L"/continuouslabel.csv";
+		flagpath = m_data->parentfolder + L"/continuouslabel_by_" + m_data->labeler.replace(L"\n",L"") + L".csv";
 		CSVReader csvreader(flagpath);
 
 		
 		for (int i = 0; i < m_data->imgLength; i++) {
-			String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"");
+			String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"").replace(L".jpg",L"");
 			flag[tmp_path] = -1;
 		}
 
@@ -104,12 +111,12 @@ public:
 	void chengeImg(FilePath imgPath) {
 		Image image(imgPath); 
 		texture.fill(image);
-		filename = imgPath.replace(m_data->parentfolder, L"");
+		filename = imgPath.replace(m_data->parentfolder, L"").replace(L".jpg",L"");
 	}
 
 	void update() override
 	{
-		font(index+1,L"/",m_data->imgLength,L"\n", filename).draw();
+		font(index+1,L"/",m_data->imgLength,L"\n", filename,L"\n",flagpath).draw();
 
 		texture.resize(640 * 0.8, 480 * 0.8).draw(30, 40);
 
@@ -156,7 +163,7 @@ public:
 			FileSystem::Remove(flagpath);
 			CSVWriter writer(flagpath);
 			for (int i = 0; i < m_data->imgLength; i++) {
-				String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"");
+				String tmp_path = m_data->filelist[i].replace(m_data->parentfolder, L"").replace(L".jpg", L"");
 				writer.write(tmp_path);
 				writer.write(flag[tmp_path]);
 				writer.nextLine();
