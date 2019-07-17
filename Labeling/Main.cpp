@@ -89,7 +89,7 @@ public:
 	FilePath flagpath;
 
 	void init() override {
-		Window::Resize(640, 640);
+		Window::Resize(580, 700);
 		Window::SetStyle(WindowStyle::Sizeable);
 		flagpath = m_data->parentfolder + L"/continuouslabel_by_" + m_data->labeler.replace(L"\n",L"") + L".csv";
 		CSVReader csvreader(flagpath);
@@ -142,7 +142,16 @@ public:
 			}
 		}
 
-		const Rect State_Button(10, 550, 200, 60);
+		const Rect Previous_Button(10, 530, 200, 60);
+		Previous_Button.draw(Color(250, 240, 230));
+		font(L"<- Previous frame").draw(Previous_Button.pos.movedBy(24, 8), Palette::Black);
+
+		const Rect Next_Button(300, 530, 200, 60);
+		Next_Button.draw(Color(250, 240, 230));
+		font(L"Next frame ->").draw(Next_Button.pos.movedBy(24, 8), Palette::Black);
+
+
+		const Rect State_Button(10, 610, 200, 60);
 		if (flag[filename] == 0) {
 			State_Button.draw(Color(127, 255, 255));
 			font(L"Label:Not Engaged").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
@@ -156,7 +165,7 @@ public:
 			font(L"No Label").draw(State_Button.pos.movedBy(24, 8), Palette::Black);
 		}
 
-		const Rect Back_Button(300, 550, 200, 60);
+		const Rect Back_Button(300, 610, 200, 60);
 		Back_Button.draw(Color(246, 54, 127));
 		font(L"Exit").draw(Back_Button.pos.movedBy(24, 8), Palette::Black);
 		if (Back_Button.leftClicked | Input::KeyEscape.pressed) {
@@ -172,13 +181,13 @@ public:
 			changeScene(L"FolderSelection");
 		}
 
-		if (Input::KeyRight.pressed) {
+		if (Input::KeyRight.pressed | Next_Button.leftClicked) {
 			if (index < m_data->imgLength - 1) {
 				index++;
 				chengeImg(m_data->filelist[index]);
 			}
 		}
-		if (Input::KeyLeft.pressed) {
+		if (Input::KeyLeft.pressed | Previous_Button.leftClicked) {
 			if (index > 0) {
 				index--;
 				chengeImg(m_data->filelist[index]);
